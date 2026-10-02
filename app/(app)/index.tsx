@@ -7,8 +7,10 @@ import {
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
+import { router } from 'expo-router';
 import { ref, get } from '@firebase/database';
 import { useAuth } from '@/context/AuthContext';
+import { useCircle } from '@/context/CircleContext';
 import { database } from '@/config/firebase';
 
 type UserProfile = {
@@ -20,6 +22,7 @@ type UserProfile = {
 
 export default function HomeScreen() {
   const { user, signOut } = useAuth();
+  const { circleId, members } = useCircle();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
 
@@ -131,6 +134,28 @@ export default function HomeScreen() {
               ) : null}
             </View>
 
+            {/* My Circle card */}
+            <TouchableOpacity
+              style={styles.circleCard}
+              onPress={() => router.push('/(app)/circle')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.circleCardLeft}>
+                <View style={styles.circleCardIcon}>
+                  <Text style={styles.circleCardEmoji}>👥</Text>
+                </View>
+                <View style={styles.circleCardText}>
+                  <Text style={styles.circleCardTitle}>My Circle</Text>
+                  <Text style={styles.circleCardSub}>
+                    {circleId
+                      ? `${members.length} member${members.length !== 1 ? 's' : ''}`
+                      : 'Tap to set up your circle'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.circleChevron}>›</Text>
+            </TouchableOpacity>
+
             {/* UID badge */}
             <View style={styles.uidBadge}>
               <Text style={styles.uidLabel}>User ID</Text>
@@ -228,4 +253,30 @@ const styles = StyleSheet.create({
   },
   uidLabel: { fontSize: 10, color: '#475569', fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
   uidValue: { fontSize: 12, color: '#64748B', fontFamily: 'monospace' },
+
+  circleCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  circleCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  circleCardIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#0F172A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circleCardEmoji: { fontSize: 20 },
+  circleCardText: { flex: 1 },
+  circleCardTitle: { fontSize: 15, fontWeight: '700', color: '#F1F5F9', marginBottom: 2 },
+  circleCardSub: { fontSize: 12, color: '#64748B' },
+  circleChevron: { fontSize: 22, color: '#475569', fontWeight: '300' },
 });

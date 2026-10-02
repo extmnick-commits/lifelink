@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { CircleProvider } from '@/context/CircleContext';
 
 function RootStack() {
   const { user, loading } = useAuth();
@@ -31,7 +32,9 @@ function RootStack() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootStack />
+      <CircleProvider>
+        <RootStack />
+      </CircleProvider>
     </AuthProvider>
   );
 }
