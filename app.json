@@ -3,6 +3,10 @@
     "name": "lifelink",
     "slug": "lifelink",
     "version": "1.0.0",
+    "scheme": "lifelink",
+    "experiments": {
+      "typedRoutes": true
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -20,6 +24,10 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar"
+    ]
   }
 }
