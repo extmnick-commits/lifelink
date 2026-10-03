@@ -3,13 +3,19 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { CircleProvider } from '@/context/CircleContext';
 import { useEffect } from 'react';
-import { startBackgroundLocation, stopBackgroundLocation } from '@/services/locationService';
+import {
+  startBackgroundLocation,
+  stopBackgroundLocation,
+  pushForegroundLocation,
+} from '@/services/locationService';
 
 function RootStack() {
   const { user, loading } = useAuth();
 
   useEffect(() => {
     if (user) {
+      // Immediately push the user's location so their marker appears on the map
+      pushForegroundLocation();
       startBackgroundLocation();
     } else {
       stopBackgroundLocation();

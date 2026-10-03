@@ -1,17 +1,22 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
-import MapView, { Circle } from 'react-native-maps';
+import MapView, { Circle, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
+import * as Location from 'expo-location';
 import { useAuth } from '@/context/AuthContext';
 import { useCircle } from '@/context/CircleContext';
 import { useCircleMapData } from '@/hooks/useCircleMapData';
 import { MemberMarker } from '@/components/MemberMarker';
+
+const isExpoGo = Constants.appOwnership === 'expo';
 
 export default function MapScreen() {
   const { user, signOut } = useAuth();
@@ -20,15 +25,40 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
 
+  // Device location for initial map centering (independent of Firebase data)
+  const [deviceLocation, setDeviceLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted' || cancelled) return;
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      if (!cancelled) {
+        setDeviceLocation({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const currentUserLocation = members.find((m) => m.uid === user?.uid);
 
   const handleRecenter = () => {
-    if (currentUserLocation && mapRef.current) {
+    const center = currentUserLocation
+      ? { latitude: currentUserLocation.latitude, longitude: currentUserLocation.longitude }
+      : deviceLocation;
+
+    if (center && mapRef.current) {
       mapRef.current.animateCamera({
-        center: {
-          latitude: currentUserLocation.latitude,
-          longitude: currentUserLocation.longitude,
-        },
+        center,
         altitude: 2000,
         pitch: 0,
         heading: 0,
@@ -45,7 +75,8 @@ export default function MapScreen() {
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFill}
-        showsUserLocation={false}
+        provider={PROVIDER_GOOGLE}
+        showsUserLocation={true}
         showsMyLocationButton={false}
         showsCompass={true}
         initialRegion={
@@ -56,12 +87,19 @@ export default function MapScreen() {
                 latitudeDelta: 0.05,
                 longitudeDelta: 0.05,
               }
-            : {
-                latitude: 37.7749, // Default to SF or some placeholder
-                longitude: -122.4194,
-                latitudeDelta: 0.0922,
-                longitudeDelta: 0.0421,
-              }
+            : deviceLocation
+              ? {
+                  latitude: deviceLocation.latitude,
+                  longitude: deviceLocation.longitude,
+                  latitudeDelta: 0.05,
+                  longitudeDelta: 0.05,
+                }
+              : {
+                  latitude: 37.7749,
+                  longitude: -122.4194,
+                  latitudeDelta: 0.0922,
+                  longitudeDelta: 0.0421,
+                }
         }
       >
         {places.map((place) => (
@@ -128,8 +166,22 @@ export default function MapScreen() {
         </View>
       )}
 
+      {isExpoGo && Platform.OS === 'android' && (
+        <View
+          style={[
+            styles.mapsNotice,
+            { bottom: Math.max(insets.bottom, 16) + (circleId ? 80 : 16) },
+          ]}
+        >
+          <Text style={styles.mapsNoticeTitle}>{"Map tiles won't load in Expo Go"}</Text>
+          <Text style={styles.mapsNoticeText}>
+            Android Expo Go ships an expired Google Maps key, so the map stays black. Your .env key is only used in a development build.
+          </Text>
+        </View>
+      )}
+
       {/* Recenter FAB */}
-      {circleId && currentUserLocation && (
+      {circleId && (currentUserLocation || deviceLocation) && (
         <TouchableOpacity
           style={[styles.fab, { bottom: Math.max(insets.bottom, 20) + 20 }]}
           onPress={handleRecenter}
@@ -263,5 +315,28 @@ const styles = StyleSheet.create({
   },
   fabIcon: {
     fontSize: 20,
+  },
+  mapsNotice: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(30, 41, 59, 0.92)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.35)',
+    zIndex: 10,
+  },
+  mapsNoticeTitle: {
+    color: '#FBBF24',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  mapsNoticeText: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    lineHeight: 17,
   },
 });
