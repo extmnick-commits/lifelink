@@ -133,15 +133,12 @@ export function CircleProvider({ children }: { children: ReactNode }) {
   const createCircle = useCallback(
     async (name?: string) => {
       if (!user) throw new Error('You must be signed in to create a circle.');
-      setIsLoading(true);
-      try {
-        const data = await svcCreateCircle(user.uid, name);
-        setCircleId(data.circleId);
-        setCircleData(data);
-        attachMemberListener(data.circleId);
-      } finally {
-        setIsLoading(false);
-      }
+      console.log('[CircleContext] createCircle called for user:', user.uid);
+      const data = await svcCreateCircle(user.uid, name);
+      console.log('[CircleContext] svcCreateCircle completed:', data.circleId);
+      setCircleId(data.circleId);
+      setCircleData(data);
+      attachMemberListener(data.circleId);
     },
     [user, attachMemberListener],
   );
@@ -149,30 +146,23 @@ export function CircleProvider({ children }: { children: ReactNode }) {
   const joinCircle = useCallback(
     async (code: string) => {
       if (!user) throw new Error('You must be signed in to join a circle.');
-      setIsLoading(true);
-      try {
-        const data = await svcJoinCircle(user.uid, code);
-        setCircleId(data.circleId);
-        setCircleData(data);
-        attachMemberListener(data.circleId);
-      } finally {
-        setIsLoading(false);
-      }
+      console.log('[CircleContext] joinCircle called with code:', code);
+      const data = await svcJoinCircle(user.uid, code);
+      console.log('[CircleContext] svcJoinCircle completed:', data.circleId);
+      setCircleId(data.circleId);
+      setCircleData(data);
+      attachMemberListener(data.circleId);
     },
     [user, attachMemberListener],
   );
 
   const leaveCircle = useCallback(async () => {
     if (!user || !circleId) throw new Error('You are not in a circle.');
-    setIsLoading(true);
-    try {
-      await svcLeaveCircle(user.uid, circleId);
-      detachMemberListener();
-      setCircleId(null);
-      setCircleData(null);
-    } finally {
-      setIsLoading(false);
-    }
+    console.log('[CircleContext] leaveCircle called for circleId:', circleId);
+    await svcLeaveCircle(user.uid, circleId);
+    detachMemberListener();
+    setCircleId(null);
+    setCircleData(null);
   }, [user, circleId, detachMemberListener]);
 
   // ── Value ──────────────────────────────────────────────────────────────────

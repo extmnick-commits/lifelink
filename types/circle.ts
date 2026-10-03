@@ -6,6 +6,11 @@ export type UserProfile = {
   email: string;
   createdAt: string;
   circleId?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    timestamp: number;
+  };
 };
 
 export type CircleData = {

@@ -61,8 +61,11 @@ function NoCircleView() {
     setError(null);
     setActionLoading('create');
     try {
+      console.log('[NoCircleView] handleCreate clicked');
       await createCircle();
+      console.log('[NoCircleView] createCircle succeeded');
     } catch (e) {
+      console.error('[NoCircleView] handleCreate error:', e);
       const msg = e instanceof Error ? e.message : 'Failed to create circle.';
       setError(msg);
     } finally {
@@ -78,8 +81,11 @@ function NoCircleView() {
     setError(null);
     setActionLoading('join');
     try {
+      console.log('[NoCircleView] handleJoin clicked with code:', code);
       await joinCircle(code.trim());
+      console.log('[NoCircleView] joinCircle succeeded');
     } catch (e) {
+      console.error('[NoCircleView] handleJoin error:', e);
       const msg = e instanceof Error ? e.message : 'Failed to join circle.';
       setError(msg);
     } finally {

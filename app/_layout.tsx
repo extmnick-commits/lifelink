@@ -2,9 +2,19 @@ import { Stack } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { CircleProvider } from '@/context/CircleContext';
+import { useEffect } from 'react';
+import { startBackgroundLocation, stopBackgroundLocation } from '@/services/locationService';
 
 function RootStack() {
   const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      startBackgroundLocation();
+    } else {
+      stopBackgroundLocation();
+    }
+  }, [user]);
 
   if (loading) {
     return (

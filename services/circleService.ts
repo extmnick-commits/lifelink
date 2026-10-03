@@ -30,17 +30,24 @@ const MAX_RETRIES = 10;
  * Retries up to MAX_RETRIES times on collision.
  */
 export async function generateUniqueInviteCode(): Promise<string> {
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const code = Array.from({ length: CODE_LENGTH }, () =>
-      CHARS[Math.floor(Math.random() * CHARS.length)],
-    ).join('');
+  try {
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const code = Array.from({ length: CODE_LENGTH }, () =>
+        CHARS[Math.floor(Math.random() * CHARS.length)],
+      ).join('');
 
-    const snapshot = await get(ref(database, `inviteCodes/${code}`));
-    if (!snapshot.exists()) {
-      return code;
+      console.log(`[circleService] Checking invite code uniqueness (attempt ${attempt + 1}): ${code}`);
+      const snapshot = await get(ref(database, `inviteCodes/${code}`));
+      if (!snapshot.exists()) {
+        console.log(`[circleService] Found unique invite code: ${code}`);
+        return code;
+      }
     }
+    throw new Error('Failed to generate a unique invite code. Please try again.');
+  } catch (error) {
+    console.error('[circleService] Error generating invite code:', error);
+    throw error;
   }
-  throw new Error('Failed to generate a unique invite code. Please try again.');
 }
 
 // ── 2. createCircle ──────────────────────────────────────────────────────────
@@ -56,29 +63,39 @@ export async function createCircle(
   userId: string,
   circleName = 'My Circle',
 ): Promise<CircleData> {
-  // Generate a new push key for the circle
-  const circleRef = push(ref(database, 'circles'));
-  const circleId = circleRef.key!;
+  try {
+    console.log('[circleService] createCircle started for userId:', userId);
+    const circleRef = push(ref(database, 'circles'));
+    const circleId = circleRef.key;
+    if (!circleId) {
+      throw new Error('Could not generate circle ID.');
+    }
 
-  const inviteCode = await generateUniqueInviteCode();
-  const now = Date.now();
+    console.log('[circleService] Generated circleId:', circleId);
+    const inviteCode = await generateUniqueInviteCode();
+    const now = Date.now();
 
-  const circleData: Omit<CircleData, 'circleId'> = {
-    name: circleName,
-    createdBy: userId,
-    createdAt: now,
-    members: { [userId]: true },
-    inviteCode,
-  };
+    const circleData: Omit<CircleData, 'circleId'> = {
+      name: circleName,
+      createdBy: userId,
+      createdAt: now,
+      members: { [userId]: true },
+      inviteCode,
+    };
 
-  // Atomic multi-path update
-  await update(ref(database), {
-    [`circles/${circleId}`]: circleData,
-    [`inviteCodes/${inviteCode}`]: { circleId, createdAt: now },
-    [`users/${userId}/circleId`]: circleId,
-  });
+    console.log('[circleService] Performing atomic multi-path update for circle:', circleId);
+    await update(ref(database), {
+      [`circles/${circleId}`]: circleData,
+      [`inviteCodes/${inviteCode}`]: { circleId, createdAt: now },
+      [`users/${userId}/circleId`]: circleId,
+    });
 
-  return { circleId, ...circleData };
+    console.log('[circleService] Circle created successfully!');
+    return { circleId, ...circleData };
+  } catch (error) {
+    console.error('[circleService] Error in createCircle:', error);
+    throw error;
+  }
 }
 
 // ── 3. joinCircleWithCode ────────────────────────────────────────────────────
