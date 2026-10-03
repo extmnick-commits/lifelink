@@ -38,6 +38,13 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fd08154e-7bee-46e1-897d-4701f815e417"
+      }
+    },
+    "owner": "extmnick"
   }
 }

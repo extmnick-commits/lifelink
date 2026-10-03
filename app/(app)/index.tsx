@@ -74,11 +74,15 @@ export default function MapScreen() {
     <View style={styles.container}>
       <MapView
         ref={mapRef}
-        style={StyleSheet.absoluteFill}
-        provider={PROVIDER_GOOGLE}
+        style={styles.map}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        googleRenderer={Platform.OS === 'android' ? 'LEGACY' : undefined}
         showsUserLocation={true}
         showsMyLocationButton={false}
         showsCompass={true}
+        onMapReady={() => {
+          console.log('[map] MapView ready');
+        }}
         initialRegion={
           currentUserLocation
             ? {
@@ -197,6 +201,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F172A',
+  },
+  map: {
+    width: '100%',
+    height: '100%',
   },
   topBarContainer: {
     position: 'absolute',
