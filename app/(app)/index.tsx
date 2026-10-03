@@ -1,282 +1,267 @@
-import React, { useEffect, useState } from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
 import { router } from 'expo-router';
-import { ref, get } from '@firebase/database';
+import MapView, { Circle } from 'react-native-maps';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useCircle } from '@/context/CircleContext';
-import { database } from '@/config/firebase';
+import { useCircleMapData } from '@/hooks/useCircleMapData';
+import { MemberMarker } from '@/components/MemberMarker';
 
-type UserProfile = {
-  uid: string;
-  displayName: string;
-  email: string;
-  createdAt: string;
-};
-
-export default function HomeScreen() {
+export default function MapScreen() {
   const { user, signOut } = useAuth();
-  const { circleId, members } = useCircle();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const { circleId, circleData, members: contextMembers } = useCircle();
+  const { members, places } = useCircleMapData(circleId);
+  const insets = useSafeAreaInsets();
+  const mapRef = useRef<MapView>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    const profileRef = ref(database, `users/${user.uid}`);
-    get(profileRef)
-      .then((snapshot) => {
-        if (snapshot.exists()) {
-          setProfile(snapshot.val() as UserProfile);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setProfileLoading(false));
-  }, [user]);
+  const currentUserLocation = members.find((m) => m.uid === user?.uid);
+
+  const handleRecenter = () => {
+    if (currentUserLocation && mapRef.current) {
+      mapRef.current.animateCamera({
+        center: {
+          latitude: currentUserLocation.latitude,
+          longitude: currentUserLocation.longitude,
+        },
+        altitude: 2000,
+        pitch: 0,
+        heading: 0,
+      });
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
   };
 
-  const initials = profile?.displayName
-    ? profile.displayName
-        .split(' ')
-        .map((w) => w[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-    : '?';
-
-  const memberSince = profile?.createdAt
-    ? new Date(profile.createdAt).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-    : null;
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* Top bar */}
+    <View style={styles.container}>
+      <MapView
+        ref={mapRef}
+        style={StyleSheet.absoluteFill}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
+        showsCompass={true}
+        initialRegion={
+          currentUserLocation
+            ? {
+                latitude: currentUserLocation.latitude,
+                longitude: currentUserLocation.longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              }
+            : {
+                latitude: 37.7749, // Default to SF or some placeholder
+                longitude: -122.4194,
+                latitudeDelta: 0.0922,
+                longitudeDelta: 0.0421,
+              }
+        }
+      >
+        {places.map((place) => (
+          <Circle
+            key={place.id}
+            center={{ latitude: place.latitude, longitude: place.longitude }}
+            radius={place.radius || 150}
+            fillColor="rgba(37, 99, 235, 0.15)"
+            strokeColor="rgba(37, 99, 235, 0.5)"
+            strokeWidth={2}
+          />
+        ))}
+
+        {members.map((member) => (
+          <MemberMarker key={member.uid} member={member} />
+        ))}
+      </MapView>
+
+      {/* Top Bar Overlay */}
+      <View style={[styles.topBarContainer, { paddingTop: Math.max(insets.top, 20) }]}>
         <View style={styles.topBar}>
-          <Text style={styles.appName}>LifeLink</Text>
-          <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.8}>
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </TouchableOpacity>
-        </View>
-
-        {profileLoading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#3B82F6" />
+          <View style={styles.topLeft}>
+            <Text style={styles.circleName}>
+              {circleData?.name || 'LifeLink'}
+            </Text>
+            {circleId && (
+              <Text style={styles.memberCount}>
+                {contextMembers.length} member{contextMembers.length !== 1 ? 's' : ''}
+              </Text>
+            )}
           </View>
-        ) : (
-          <>
-            {/* Avatar + greeting */}
-            <View style={styles.heroSection}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </View>
-              <Text style={styles.greeting}>
-                Hello, {profile?.displayName ?? user?.email ?? 'there'} 👋
-              </Text>
-              <Text style={styles.tagline}>Welcome to your LifeLink dashboard</Text>
-            </View>
-
-            {/* Profile card */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Your Profile</Text>
-
-              <View style={styles.infoRow}>
-                <View style={styles.infoIconWrap}>
-                  <Text style={styles.infoIcon}>👤</Text>
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Display Name</Text>
-                  <Text style={styles.infoValue}>
-                    {profile?.displayName ?? '—'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.infoRow}>
-                <View style={styles.infoIconWrap}>
-                  <Text style={styles.infoIcon}>✉️</Text>
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Email</Text>
-                  <Text style={styles.infoValue}>
-                    {profile?.email ?? user?.email ?? '—'}
-                  </Text>
-                </View>
-              </View>
-
-              {memberSince ? (
-                <>
-                  <View style={styles.divider} />
-                  <View style={styles.infoRow}>
-                    <View style={styles.infoIconWrap}>
-                      <Text style={styles.infoIcon}>📅</Text>
-                    </View>
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Member since</Text>
-                      <Text style={styles.infoValue}>{memberSince}</Text>
-                    </View>
-                  </View>
-                </>
-              ) : null}
-            </View>
-
-            {/* My Circle card */}
+          <View style={styles.topRight}>
             <TouchableOpacity
-              style={styles.circleCard}
-              onPress={() => router.push('/(app)/circle')}
-              activeOpacity={0.8}
+              style={styles.actionBtn}
+              onPress={() => router.push('/places' as any)}
             >
-              <View style={styles.circleCardLeft}>
-                <View style={styles.circleCardIcon}>
-                  <Text style={styles.circleCardEmoji}>👥</Text>
-                </View>
-                <View style={styles.circleCardText}>
-                  <Text style={styles.circleCardTitle}>My Circle</Text>
-                  <Text style={styles.circleCardSub}>
-                    {circleId
-                      ? `${members.length} member${members.length !== 1 ? 's' : ''}`
-                      : 'Tap to set up your circle'}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.circleChevron}>›</Text>
+              <Text style={styles.actionBtnText}>Places</Text>
             </TouchableOpacity>
-
-            {/* UID badge */}
-            <View style={styles.uidBadge}>
-              <Text style={styles.uidLabel}>User ID</Text>
-              <Text style={styles.uidValue} numberOfLines={1}>
-                {user?.uid}
-              </Text>
-            </View>
-          </>
-        )}
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.signOutBtn]}
+              onPress={handleSignOut}
+            >
+              <Text style={styles.signOutBtnText}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
-    </SafeAreaView>
+
+      {/* Empty State Overlay */}
+      {!circleId && (
+        <View style={styles.emptyStateOverlay} pointerEvents="box-none">
+          <View style={styles.emptyStateCard}>
+            <Text style={styles.emptyStateTitle}>Welcome to LifeLink</Text>
+            <Text style={styles.emptyStateDesc}>
+              You need to create or join a circle to see members on the map.
+            </Text>
+            <TouchableOpacity
+              style={styles.primaryBtn}
+              onPress={() => router.push('/(app)/circle')}
+            >
+              <Text style={styles.primaryBtnText}>Create or Join a Circle</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Recenter FAB */}
+      {circleId && currentUserLocation && (
+        <TouchableOpacity
+          style={[styles.fab, { bottom: Math.max(insets.bottom, 20) + 20 }]}
+          onPress={handleRecenter}
+        >
+          <Text style={styles.fabIcon}>📍</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#0F172A' },
-  container: { flex: 1, paddingHorizontal: 24 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
+  container: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
+  topBarContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 16,
+    backgroundColor: 'rgba(30, 41, 59, 0.85)',
+    marginHorizontal: 16,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  appName: { fontSize: 20, fontWeight: '800', color: '#3B82F6', letterSpacing: 0.5 },
+  topLeft: {
+    flex: 1,
+  },
+  circleName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  memberCount: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  topRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionBtn: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  actionBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   signOutBtn: {
-    backgroundColor: '#1E293B',
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#475569',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
   },
-  signOutText: { color: '#F87171', fontSize: 13, fontWeight: '600' },
-
-  heroSection: { alignItems: 'center', paddingVertical: 32 },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
+  signOutBtnText: {
+    color: '#F87171',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyStateOverlay: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+  },
+  emptyStateCard: {
+    backgroundColor: '#1E293B',
+    padding: 24,
+    borderRadius: 16,
+    width: '85%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  emptyStateDesc: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  primaryBtn: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  primaryBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#3B82F6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+    zIndex: 10,
   },
-  avatarText: { fontSize: 30, fontWeight: '800', color: '#fff' },
-  greeting: { fontSize: 22, fontWeight: '700', color: '#F1F5F9', marginBottom: 6, textAlign: 'center' },
-  tagline: { fontSize: 14, color: '#64748B', textAlign: 'center' },
-
-  card: {
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 16,
+  fabIcon: {
+    fontSize: 20,
   },
-  cardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#64748B',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 16,
-  },
-  infoRow: { flexDirection: 'row', alignItems: 'center' },
-  infoIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#0F172A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  infoIcon: { fontSize: 16 },
-  infoContent: { flex: 1 },
-  infoLabel: { fontSize: 11, color: '#64748B', fontWeight: '600', letterSpacing: 0.5, marginBottom: 2 },
-  infoValue: { fontSize: 15, color: '#E2E8F0', fontWeight: '500' },
-  divider: { height: 1, backgroundColor: '#334155', marginVertical: 14 },
-
-  uidBadge: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  uidLabel: { fontSize: 10, color: '#475569', fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
-  uidValue: { fontSize: 12, color: '#64748B', fontFamily: 'monospace' },
-
-  circleCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  circleCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  circleCardIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: '#0F172A',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  circleCardEmoji: { fontSize: 20 },
-  circleCardText: { flex: 1 },
-  circleCardTitle: { fontSize: 15, fontWeight: '700', color: '#F1F5F9', marginBottom: 2 },
-  circleCardSub: { fontSize: 12, color: '#64748B' },
-  circleChevron: { fontSize: 22, color: '#475569', fontWeight: '300' },
 });
