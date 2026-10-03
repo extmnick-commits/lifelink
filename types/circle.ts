@@ -11,6 +11,17 @@ export type UserProfile = {
     longitude: number;
     timestamp: number;
   };
+  status?: string;
+  lastStatusUpdate?: number;
+};
+
+export type Place = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius: number;
+  createdAt: number;
 };
 
 export type CircleData = {

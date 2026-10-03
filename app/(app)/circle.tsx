@@ -282,6 +282,16 @@ function HasCircleView() {
         )}
       </View>
 
+      {/* Manage Places */}
+      <TouchableOpacity
+        style={[styles.managePlacesButton, isLoading && styles.buttonDisabled]}
+        onPress={() => router.push('/places' as any)}
+        disabled={isLoading}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.managePlacesButtonText}>Manage Places</Text>
+      </TouchableOpacity>
+
       {/* Leave */}
       <TouchableOpacity
         style={[styles.leaveButton, (leaving || isLoading) && styles.buttonDisabled]}
@@ -613,6 +623,21 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
   },
   memberBadgeText: { color: '#475569', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+
+  // ── Manage Places button
+  managePlacesButton: {
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    marginBottom: 16,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  managePlacesButtonText: { color: '#fff', fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
 
   // ── Leave button
   leaveButton: {
